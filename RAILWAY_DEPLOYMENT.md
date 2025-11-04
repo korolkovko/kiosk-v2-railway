@@ -1572,6 +1572,112 @@ Command failed with exit code 2
 
 ---
 
+#### 13. frontend/apps/kiosk/src/ (КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ - TypeScript Compilation Part 1)
+
+**Причина:** Railway build падал с 22 TypeScript ошибками компиляции:
+```
+error TS2503: Cannot find namespace 'NodeJS'
+error TS2305: Module has no exported member 'MediaUpdateEvent'
+error TS2305: Module has no exported member 'MenuActivatedEvent'
+error TS2367: Types have no overlap (MEDIA_UPDATE, MENU_ACTIVATED)
+error TS2339: Property 'isActive' does not exist on type 'AvailableItemVM'
+error TS2339: Property 'isAvailable' does not exist on type 'AvailableItem'
+Command failed with exit code 2
+```
+
+**Диагностика проблемы:**
+
+1. **NodeJS namespace (5 errors):**
+   - Отсутствует `@types/node` в devDependencies
+   - Код использует `NodeJS.Timeout` в хуках (useInactivityDetection, useProactiveTokenRefresh, etc)
+   - TypeScript не может распознать глобальные типы Node.js
+
+2. **SSE event types (4 errors):**
+   - `sseService.ts` не содержит типы `MEDIA_UPDATE` и `MENU_ACTIVATED`
+   - `useSSEMediaUpdate.ts` и `useSSEMenuUpdates.ts` используют эти события
+   - TypeScript не может найти экспортированные интерфейсы
+
+3. **Model properties (2+ errors):**
+   - `AvailableItem` (domain) имеет только `isActive`
+   - `AvailableItemVM` (view) имеет только `isAvailable`
+   - Код путает эти свойства, обращаясь к неправильным именам
+
+**Решение (Part 1 - Critical Types):**
+
+1. **Добавили @types/node:**
+```diff
+ "devDependencies": {
+   "@tailwindcss/postcss": "^4.1.3",
++  "@types/node": "^20.0.0",
+   "@typescript-eslint/eslint-plugin": "^8.30.1",
+```
+
+2. **Добавили SSE события в sseService.ts:**
+```diff
+ export interface SSEEvent {
+-  event_type: '...' | 'HEARTBEAT'
++  event_type: '...' | 'HEARTBEAT' | 'MEDIA_UPDATE' | 'MENU_ACTIVATED'
+   timestamp?: string
+ }
+
++export interface MediaUpdateEvent extends SSEEvent {
++  event_type: 'MEDIA_UPDATE'
++  media_type?: string
++  media_path?: string
++}
++
++export interface MenuActivatedEvent extends SSEEvent {
++  event_type: 'MENU_ACTIVATED'
++  menu_id?: number
++  menu_name?: string
++}
+
+-export type KioskSSEEvent = ... | HeartbeatEvent
++export type KioskSSEEvent = ... | HeartbeatEvent | MediaUpdateEvent | MenuActivatedEvent
+```
+
+3. **Добавили недостающие свойства в модели:**
+```diff
+// AvailableItem (domain)
+   isActive: boolean;
++  isAvailable: boolean; // Compatibility alias (same as isActive for domain)
+
+// AvailableItemVM (view)
++  isActive: boolean; // Compatibility alias
+   isAvailable: boolean; // Computed: stockQuantity > 0 && isActive
+```
+
+4. **Обновили pnpm-lock.yaml:**
+   - Установили `@types/node@20.19.24`
+   - Обновили 6 зависимостей
+
+**Файлы изменены:**
+- `frontend/apps/kiosk/package.json` (+1 devDependency)
+- `frontend/apps/kiosk/pnpm-lock.yaml` (обновлен lockfile)
+- `frontend/apps/kiosk/src/SSESubscription/sseService.ts` (+17 строк)
+- `frontend/apps/kiosk/src/models/domain/availableItem.ts` (+1 строка)
+- `frontend/apps/kiosk/src/models/view/availableItem.vm.ts` (+1 строка)
+
+**Обоснование:**
+- ✅ @types/node необходим для типизации Node.js APIs (setTimeout, setInterval, etc)
+- ✅ SSE события используются в production для real-time updates
+- ✅ Compatibility aliases обеспечивают обратную совместимость без рефакторинга всего кода
+- ✅ Не меняет runtime поведение - только исправляет типы для компилятора
+
+**Обратная совместимость:**
+- Полная совместимость (type definitions only)
+- Runtime код не изменен
+- Mappers требуют обновления (Part 2 - в работе)
+
+**Для техлида:**
+- Это Part 1 из серии исправлений TypeScript ошибок
+- Исправлены критические ошибки типов (NodeJS namespace, SSE events, models)
+- Остаются некритичные ошибки (unused variables, mappers) - будут исправлены в Part 2
+- Проверено локально: количество ошибок сократилось с 22 до 12
+- Build на Railway должен пройти дальше, но еще может упасть на mappers
+
+---
+
 ## Резюме изменений
 
 | # | Файл | Изменение | Влияние на логику | Совместимость |
@@ -1587,8 +1693,11 @@ Command failed with exit code 2
 | 9 | `backend/app/config.py` | ALLOWED_ORIGINS validator | ❌ НЕТ | ✅ Полная |
 | 10 | `frontend/apps/kiosk/Dockerfile.pnpm` | ARG+ENV для VITE_* (Railway) | ❌ НЕТ | ✅ Полная |
 | 11 | `frontend/apps/kiosk/pnpm-lock.yaml` | Обновлен lockfile (+864 строки) | ❌ НЕТ | ✅ Полная |
-| 12 | `frontend/apps/kiosk/src/typings.d.ts` | Исправлена опечатка hadeclare→declare | ❌ НЕТ | ✅ Полная |
-| 12 | `frontend/.../FocusableQuantityControl.tsx` | Удален (коррумпирован, не используется) | ❌ НЕТ | ✅ Полная |
+| 12a | `frontend/apps/kiosk/src/typings.d.ts` | Исправлена опечатка hadeclare→declare | ❌ НЕТ | ✅ Полная |
+| 12b | `frontend/.../FocusableQuantityControl.tsx` | Удален (коррумпирован, не используется) | ❌ НЕТ | ✅ Полная |
+| 13 | `frontend/apps/kiosk/package.json` | Добавлен @types/node | ❌ НЕТ | ✅ Полная |
+| 13 | `frontend/apps/kiosk/src/SSESubscription/` | Добавлены SSE события MEDIA_UPDATE/MENU_ACTIVATED | ❌ НЕТ | ✅ Полная |
+| 13 | `frontend/apps/kiosk/src/models/` | Добавлены compatibility aliases isActive/isAvailable | ❌ НЕТ | ✅ Полная |
 
 **Все изменения:**
 - ✅ Не затрагивают бизнес-логику

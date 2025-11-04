@@ -1297,9 +1297,16 @@ npx serve -s dist -l 3000
 
 #### 9. backend/app/config.py (ДОПОЛНИТЕЛЬНОЕ ИЗМЕНЕНИЕ - Railway Bugfix)
 
-**Причина:** Backend крашился на Railway с ошибкой JSON парсинга `ALLOWED_ORIGINS`. Pydantic Settings ожидал JSON-массив, но Railway передает comma-separated строку.
+**Причина:** Backend крашился на Railway с ошибкой JSON парсинга `ALLOWED_ORIGINS`.
 
-**Решение:** Добавлен `field_validator` для парсинга `ALLOWED_ORIGINS` из нескольких форматов.
+**Диагностика проблемы:**
+Pydantic Settings пытался автоматически парсить `List[str]` через `json.loads()` **ДО** того, как наш `field_validator` мог сработать. Это происходило в методе `EnvSettingsSource.prepare_field_value()`, который вызывается перед валидаторами полей.
+
+**Первая попытка (не сработала):**
+Добавили `field_validator` с парсингом разных форматов, но Pydantic все равно падал с `JSONDecodeError` при попытке автопарсинга.
+
+**Финальное решение:**
+Изменили тип поля с `List[str]` на `Union[str, List[str]]`. Это предотвратило автоматический JSON-парсинг Pydantic, позволив нашему валидатору полностью контролировать процесс.
 
 ```diff
 +from functools import lru_cache
@@ -1315,20 +1322,25 @@ npx serve -s dist -l 3000
  from dotenv import load_dotenv
 
  # CORS Settings
-+# Supports multiple formats:
-+# 1. List in .env files or defaults: ["http://localhost", "http://localhost:3000"]
-+# 2. Comma-separated string (Railway, Heroku, etc): "http://localhost,http://localhost:3000"
-+# 3. JSON array string: '["http://localhost", "http://localhost:3000"]'
- ALLOWED_ORIGINS: List[str] = ["http://localhost", "http://localhost:3000"]
+-ALLOWED_ORIGINS: List[str] = ["http://localhost", "http://localhost:3000"]
++# Accepts multiple input formats via validator:
++# 1. Comma-separated string (Railway, Heroku, cloud platforms): "http://localhost,http://localhost:3000"
++# 2. JSON array string (backward compatibility): '["http://localhost", "http://localhost:3000"]'
++# 3. List from Python code (defaults): ["http://localhost", "http://localhost:3000"]
++#
++# IMPORTANT: Type is Union to prevent Pydantic from auto-parsing before validator runs
++ALLOWED_ORIGINS: Union[str, List[str]] = "http://localhost,http://localhost:3000"
 
 +@field_validator('ALLOWED_ORIGINS', mode='before')
 +@classmethod
 +def parse_allowed_origins(cls, v: Union[str, List[str]]) -> List[str]:
 +    """
-+    Parse ALLOWED_ORIGINS from multiple formats to ensure compatibility
-+    with Railway, Docker, local .env files, and direct environment variables.
++    Parse ALLOWED_ORIGINS from multiple formats to ensure universal compatibility.
++
++    This validator runs BEFORE Pydantic's automatic type coercion, allowing us to
++    handle comma-separated strings from Railway and other cloud platforms.
 +    """
-+    # If already a list, return as-is
++    # If already a list, return as-is (from Python defaults or programmatic config)
 +    if isinstance(v, list):
 +        return v
 +
@@ -1341,7 +1353,7 @@ npx serve -s dist -l 3000
 +        if not v:
 +            return ["http://localhost", "http://localhost:3000"]
 +
-+        # Try parsing as JSON array
++        # Try parsing as JSON array (backward compatibility)
 +        if v.startswith('[') and v.endswith(']'):
 +            try:
 +                parsed = json.loads(v)
@@ -1350,17 +1362,29 @@ npx serve -s dist -l 3000
 +            except json.JSONDecodeError:
 +                pass
 +
-+        # Parse as comma-separated string
++        # Parse as comma-separated string (Railway, Heroku, most cloud platforms)
 +        return [origin.strip() for origin in v.split(',') if origin.strip()]
 +
-+    # Fallback to default
++    # Fallback to default for any unexpected type
 +    return ["http://localhost", "http://localhost:3000"]
 ```
 
+**Ключевое изменение типа:**
+```diff
+-ALLOWED_ORIGINS: List[str] = ["http://localhost", "http://localhost:3000"]
++ALLOWED_ORIGINS: Union[str, List[str]] = "http://localhost,http://localhost:3000"
+```
+
 **Поддерживаемые форматы:**
-- ✅ `ALLOWED_ORIGINS=https://frontend.railway.app,http://localhost:3000` (Railway)
-- ✅ `ALLOWED_ORIGINS='["http://localhost", "http://localhost:3000"]'` (JSON string)
-- ✅ `ALLOWED_ORIGINS=["http://localhost", "http://localhost:3000"]` (Python defaults)
+- ✅ `ALLOWED_ORIGINS=https://frontend.railway.app,http://localhost:3000` (Railway, primary)
+- ✅ `ALLOWED_ORIGINS='["http://localhost", "http://localhost:3000"]'` (JSON string, backward compatibility)
+- ✅ `ALLOWED_ORIGINS=["http://localhost", "http://localhost:3000"]` (Python list, programmatic config)
+
+**Техническое объяснение:**
+- Когда поле имеет тип `List[str]`, Pydantic's `EnvSettingsSource` автоматически вызывает `decode_complex_value()` → `json.loads()`
+- Это происходит в `prepare_field_value()` **до** выполнения field validators
+- `Union` типы не триггерят автоматический JSON парсинг
+- Наш validator получает полный контроль над парсингом и может обработать любой формат
 
 ---
 

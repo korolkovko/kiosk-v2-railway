@@ -2188,6 +2188,260 @@ pnpm run build
 
 ---
 
+#### 15. frontend/apps/kiosk/src/global.css (КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ - Tailwind CSS Production Build Fix)
+
+**Причина:** После успешного TypeScript build, фронтенд задеплоился на Railway, но форма логина и все компоненты были **без стилей**.
+
+**Проблема:**
+```bash
+# Локальный build
+npm run build
+# Result: CSS bundle = 0.00 kB ❌ (стили не генерируются!)
+
+# Ошибка в логах:
+Error: Cannot apply unknown utility class `m-0`. Are you using CSS modules or similar and missing `@reference`?
+```
+
+**ДИАГНОСТИКА:**
+
+**Симптомы:**
+- Railway frontend деплоится успешно ✅
+- Сайт открывается без ошибок HTTP ✅
+- НО форма логина без стилей (inputs и кнопки выглядят как plain HTML) ❌
+- В dev режиме (`npm run dev`) стили работают ✅
+- В production build (`npm run build`) CSS файл 0 kB ❌
+
+**Проверка локально:**
+```bash
+npm run build
+# До фикса:
+dist/assets/index-tn0RQdqM.css    0.00 kB │ gzip:  0.02 kB  ❌
+
+# После фикса:
+dist/assets/index-oNMfTBcZ.css   25.35 kB │ gzip:  5.92 kB  ✅
+```
+
+**Корневая причина:**
+
+У проекта установлен **Tailwind CSS v4.1.11** с **@tailwindcss/postcss v4.1.11**, но в `global.css` использовался **несовместимый синтаксис**:
+
+**Было (неправильно для Tailwind v4):**
+```css
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@layer theme, base, components, utilities;
+@config "../tailwind.config.js";
+
+body {
+  @apply leading-[normal] m-0;  // ❌ @apply не работает в v4 без @reference
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-width: 0;
+  }
+}
+```
+
+**Проблемы:**
+1. Старый синтаксис импорта через `@import "tailwindcss/preflight.css"` не совместим с PostCSS плагином
+2. `@apply` требует `@reference` директиву в Tailwind v4
+3. `@config` не нужен (PostCSS автоматически находит tailwind.config.js)
+4. Production build молча падал (CSS = 0 kB), но dev mode работал
+
+**Почему локально в dev работало:**
+- Vite dev server более "прощающий"
+- Hot Module Replacement обрабатывает CSS по-другому
+- PostCSS плагин частично работает в dev, но ломается в production build
+
+**Почему в Railway не работало:**
+- Railway запускает строгий production build: `pnpm run build` → `tsc && vite build`
+- Vite production build требует валидный CSS
+- PostCSS плагин не может обработать mixed синтаксис (v3 + v4)
+- CSS файл генерируется пустым (0 kB)
+
+**РЕШЕНИЕ:**
+
+Обновить `global.css` на **правильный Tailwind CSS v4 синтаксис**:
+
+**Файл:** `frontend/apps/kiosk/src/global.css`
+
+**Было:**
+```css
+@import url("https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,500;0,700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;700&display=swap");
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@layer theme, base, components, utilities;
+@config "../tailwind.config.js";
+
+body {
+  @apply leading-[normal] m-0;
+}
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-width: 0;
+  }
+}
+```
+
+**Стало:**
+```css
+@import url("https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,500;0,700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;700&display=swap");
+
+@import "tailwindcss";
+
+body {
+  line-height: normal;
+  margin: 0;
+}
+
+*,
+::before,
+::after {
+  border-width: 0;
+}
+```
+
+**Изменения:**
+1. ✅ Заменили множественные `@import "tailwindcss/..."` на один `@import "tailwindcss"`
+2. ✅ Удалили `@layer` директивы (не нужны для простых стилей)
+3. ✅ Удалили `@config` (PostCSS автоматически находит tailwind.config.js)
+4. ✅ Заменили `@apply leading-[normal] m-0` на обычный CSS: `line-height: normal; margin: 0;`
+5. ✅ Вынесли `border-width: 0` из `@layer base` на корневой уровень
+
+**Обоснование каждого изменения:**
+
+1. **`@import "tailwindcss"` вместо `@import "tailwindcss/preflight.css" ...`**
+   - Tailwind v4 требует единый импорт
+   - PostCSS плагин автоматически подключает preflight, theme, utilities
+   - См. документацию: https://tailwindcss.com/docs/upgrade-guide#replace-tailwind-directives
+
+2. **Vanilla CSS вместо `@apply`:**
+   - В Tailwind v4 `@apply` в `global.css` требует `@reference` directive
+   - Для простых стилей (line-height, margin) проще использовать обычный CSS
+   - Избегаем лишней сложности и потенциальных ошибок
+
+3. **Удаление `@layer base`:**
+   - Для глобальных стилей `*` не нужен `@layer` wrapper
+   - Tailwind v4 корректно обрабатывает plain CSS после `@import "tailwindcss"`
+
+4. **Удаление `@config "../tailwind.config.js"`:**
+   - PostCSS плагин автоматически ищет `tailwind.config.js` в корне проекта
+   - Явный `@config` не нужен и может вызывать конфликты
+
+**ТЕХНИЧЕСКАЯ СПРАВКА - Tailwind CSS v4 + Vite:**
+
+Согласно официальной документации Tailwind CSS v4 (Context7):
+
+**Для Vite рекомендуется два подхода:**
+
+**Вариант A: PostCSS плагин (текущий):**
+```json
+// postcss.config.js
+{
+  "plugins": {
+    "@tailwindcss/postcss": {}
+  }
+}
+```
+```css
+// global.css
+@import "tailwindcss";
+```
+
+**Вариант B: Vite плагин (альтернатива):**
+```typescript
+// vite.config.ts
+import tailwindcss from '@tailwindcss/vite'
+
+export default defineConfig({
+  plugins: [tailwindcss(), react()],
+})
+```
+
+Мы используем **Вариант A**, поэтому обязательно требуется `@import "tailwindcss"` в CSS.
+
+**ПРОВЕРКА:**
+
+```bash
+# Локальный build
+npm run build
+
+# До фикса:
+dist/assets/index-tn0RQdqM.css    0.00 kB │ gzip:  0.02 kB  ❌
+
+# После фикса:
+dist/assets/index-oNMfTBcZ.css   25.35 kB │ gzip:  5.92 kB  ✅
+```
+
+**Результаты:**
+- ✅ CSS bundle: **0 kB → 25.35 kB**
+- ✅ Все Tailwind utility классы генерируются кор��ектно
+- ✅ Форма логина рендерится со стилями
+- ✅ Production build проходит без ошибок
+- ✅ Совместимо с Railway deployment
+
+**ВЛИЯНИЕ НА ЛОГИКУ:** ❌ **НЕТ**
+
+- Чисто CSS синтаксис, никаких изменений в JavaScript/TypeScript
+- `line-height: normal` идентично `@apply leading-[normal]`
+- `margin: 0` идентично `@apply m-0`
+- Все Tailwind классы в компонентах продолжают работать
+
+**ОБРАТНАЯ СОВМЕСТИМОСТЬ:**
+
+| Аспект | Статус | Комментарий |
+|--------|--------|-------------|
+| Локальная разработка | ✅ РАБОТАЕТ | Dev mode продолжает работать |
+| Production build | ✅ ИСПРАВЛЕНО | Теперь генерирует CSS корректно |
+| Tailwind классы | ✅ БЕЗ ИЗМЕНЕНИЙ | Все классы в компонентах работают |
+| Docker Compose | ✅ СОВМЕСТИМО | Локальный deploy не затронут |
+| VPS deployment | ✅ СОВМЕСТИМО | Обычные серверы работают |
+| Railway | ✅ ИСПРАВЛЕНО | Production стили теперь загружаются |
+
+**ФАЙЛЫ ИЗМЕНЕНЫ:**
+
+- `frontend/apps/kiosk/src/global.css` (+9 строк, -12 строк)
+
+**Итого:** +9 -12 = -3 строки (упрощение)
+
+**Commit:**
+```bash
+git commit -m "fix(frontend): Fix Tailwind CSS styles not loading in production build"
+```
+
+**ДЛЯ ТЕХЛИДА:**
+
+**1. Природа проблемы:**
+- Несоответствие между Tailwind CSS v4 (package.json) и старым синтаксисом v3 (global.css)
+- Vite dev mode "прощает" ошибки, production build строгий
+- Railway обнаружил проблему через строгий build процесс
+
+**2. Почему не проявлялось локально в dev:**
+- Vite HMR обрабатывает CSS более мягко
+- PostCSS в dev режиме частично работает с mixed синтаксисом
+- Production build требует strict compliance с Tailwind v4 синтаксисом
+
+**3. Безопасность решения:**
+- Минимальные изменения (только синтаксис CSS)
+- Никаких изменений в логике или JavaScript
+- Полная обратная совместимость
+
+**4. Best practices:**
+- Использование официального Tailwind v4 синтаксиса
+- Упрощение (меньше директив = меньше потенциальных проблем)
+- Vanilla CSS для простых стилей (вместо @apply)
+
+---
+
 ## Резюме изменений
 
 | # | Файл | Изменение | Влияние на логику | Совместимость |
@@ -2213,6 +2467,7 @@ pnpm run build
 | 14 | `frontend/apps/kiosk/src/SSESubscription/` | Добавлены undefined checks в SSE хуках | ❌ НЕТ | ✅ Полная |
 | 14 | `frontend/apps/kiosk/src/models/domain/order.ts` | Добавлен PaymentStatus enum (legacy) | ❌ НЕТ | ✅ Полная |
 | 14 | `frontend/apps/kiosk/src/` (15 файлов) | Cleanup: удалены unused imports/variables | ❌ НЕТ | ✅ Полная |
+| 15 | `frontend/apps/kiosk/src/global.css` | Tailwind v4 синтаксис (@import "tailwindcss") | ❌ НЕТ | ✅ Полная |
 
 **Все изменения:**
 - ✅ Не затрагивают бизнес-логику

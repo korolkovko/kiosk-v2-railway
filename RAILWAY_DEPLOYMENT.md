@@ -1295,6 +1295,73 @@ npx serve -s dist -l 3000
 +.railway/
 ```
 
+#### 9. backend/app/config.py (ДОПОЛНИТЕЛЬНОЕ ИЗМЕНЕНИЕ - Railway Bugfix)
+
+**Причина:** Backend крашился на Railway с ошибкой JSON парсинга `ALLOWED_ORIGINS`. Pydantic Settings ожидал JSON-массив, но Railway передает comma-separated строку.
+
+**Решение:** Добавлен `field_validator` для парсинга `ALLOWED_ORIGINS` из нескольких форматов.
+
+```diff
++from functools import lru_cache
+-from typing import List
++from typing import List, Union
+ from pathlib import Path
+ import os
++import json
+
+-from pydantic import Field
++from pydantic import Field, field_validator
+ from pydantic_settings import BaseSettings, SettingsConfigDict
+ from dotenv import load_dotenv
+
+ # CORS Settings
++# Supports multiple formats:
++# 1. List in .env files or defaults: ["http://localhost", "http://localhost:3000"]
++# 2. Comma-separated string (Railway, Heroku, etc): "http://localhost,http://localhost:3000"
++# 3. JSON array string: '["http://localhost", "http://localhost:3000"]'
+ ALLOWED_ORIGINS: List[str] = ["http://localhost", "http://localhost:3000"]
+
++@field_validator('ALLOWED_ORIGINS', mode='before')
++@classmethod
++def parse_allowed_origins(cls, v: Union[str, List[str]]) -> List[str]:
++    """
++    Parse ALLOWED_ORIGINS from multiple formats to ensure compatibility
++    with Railway, Docker, local .env files, and direct environment variables.
++    """
++    # If already a list, return as-is
++    if isinstance(v, list):
++        return v
++
++    # If string, try different parsing strategies
++    if isinstance(v, str):
++        # Remove whitespace
++        v = v.strip()
++
++        # Empty string returns default
++        if not v:
++            return ["http://localhost", "http://localhost:3000"]
++
++        # Try parsing as JSON array
++        if v.startswith('[') and v.endswith(']'):
++            try:
++                parsed = json.loads(v)
++                if isinstance(parsed, list):
++                    return parsed
++            except json.JSONDecodeError:
++                pass
++
++        # Parse as comma-separated string
++        return [origin.strip() for origin in v.split(',') if origin.strip()]
++
++    # Fallback to default
++    return ["http://localhost", "http://localhost:3000"]
+```
+
+**Поддерживаемые форматы:**
+- ✅ `ALLOWED_ORIGINS=https://frontend.railway.app,http://localhost:3000` (Railway)
+- ✅ `ALLOWED_ORIGINS='["http://localhost", "http://localhost:3000"]'` (JSON string)
+- ✅ `ALLOWED_ORIGINS=["http://localhost", "http://localhost:3000"]` (Python defaults)
+
 ---
 
 ## Резюме изменений
@@ -1309,6 +1376,7 @@ npx serve -s dist -l 3000
 | 6 | `frontend/apps/kiosk/.dockerignore` | Новый файл (94 строки) | ❌ НЕТ | ✅ Полная |
 | 7 | `frontend/apps/kiosk/Dockerfile` | ARG+ENV для VITE_* (40 строк) | ❌ НЕТ | ✅ Полная |
 | 8 | `.gitignore` | Railway файлы | ❌ НЕТ | ✅ Полная |
+| 9 | `backend/app/config.py` | ALLOWED_ORIGINS validator | ❌ НЕТ | ✅ Полная |
 
 **Все изменения:**
 - ✅ Не затрагивают бизнес-логику

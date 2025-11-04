@@ -808,9 +808,11 @@ curl https://kiosk-backend-xxx.railway.app/
 3. Выберите тот же репозиторий
 4. Railway обнаружит Dockerfile
 
-##### Настроить Root Directory:
+##### Настроить Root Directory и Dockerfile:
 
-В **Settings** → **Root Directory** установите: `frontend/apps/kiosk`
+В **Settings**:
+- **Root Directory:** `frontend/apps/kiosk` ⚠️ **НЕ** `frontend`!
+- **Dockerfile Path:** `Dockerfile.pnpm` (или оставьте пустым для автоопределения)
 
 ##### Установить environment variables:
 
@@ -1388,6 +1390,101 @@ Pydantic Settings пытался автоматически парсить `List
 
 ---
 
+#### 10. frontend/apps/kiosk/Dockerfile.pnpm (КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ - Railway Fix)
+
+**Причина:** Frontend деплой на Railway падал с ошибкой:
+```
+ERROR: failed to compute cache key: "/shared/package.json": not found
+ERROR: failed to compute cache key: "/apps/kiosk/package.json": not found
+```
+
+**Диагностика проблемы:**
+
+1. **Первоначальная попытка:** Использовали `frontend/apps/kiosk/Dockerfile` с Root Directory = `frontend`
+   - Dockerfile пытался скопировать `shared/package.json` (несуществующая директория)
+   - Dockerfile предполагал workspace структуру с shared пакетом
+
+2. **Разъяснение от предыдущего разработчика:**
+   - В docker-compose используется **Dockerfile.pnpm** с context = `frontend/apps/kiosk`
+   - Это production Dockerfile с простой структурой без workspace
+   - `Dockerfile` (npm-based) был устаревшим/экспериментальным
+
+3. **Решение:** Использовать **Dockerfile.pnpm** (как в docker-compose) + добавить поддержку Railway:
+   - Добавили ARG/ENV для VITE_* переменных
+   - Установили Root Directory = `frontend/apps/kiosk`
+   - Использовали существующий рабочий Dockerfile из docker-compose
+
+**Изменения:**
+
+```diff
+ # syntax=docker/dockerfile:1
+ FROM node:18-alpine AS build
+ WORKDIR /app
+ RUN corepack enable && corepack prepare pnpm@latest --activate
++
++# Accept build arguments for Vite environment variables
++# These will be embedded in the build at compile time
++ARG VITE_API_URL
++ARG VITE_WS_URL
++ARG VITE_STORAGE_PROVIDER
++ARG VITE_LOCAL_MEDIA_BASE_PATH
++ARG VITE_LOCAL_PATH_ITEMS
++ARG VITE_LOCAL_PATH_CATEGORIES_OPEN
++ARG VITE_LOCAL_PATH_CATEGORIES_SORRY
++ARG VITE_LOCAL_PATH_CATEGORIES_PROMOTED
++ARG VITE_LOCAL_PATH_SCREENSAVER
++ARG VITE_LOCAL_PATH_ORDER_HANDLING
++ARG VITE_LOCAL_PATH_SERVICE_MODE
++ARG VITE_S3_ENDPOINT
++ARG VITE_S3_BUCKET
++ARG VITE_S3_REGION
++ARG VITE_SERVICE_MODE_MEDIA_NAMES
++ARG VITE_SCREENSAVER_MEDIA_NAMES
++ARG VITE_ORDER_HANDLING_MEDIA_NAMES
++
++# Make args available as environment variables during build
++# Vite will embed these into the JavaScript bundle
++ENV VITE_API_URL=$VITE_API_URL \
++    VITE_WS_URL=$VITE_WS_URL \
++    VITE_STORAGE_PROVIDER=$VITE_STORAGE_PROVIDER \
++    VITE_LOCAL_MEDIA_BASE_PATH=$VITE_LOCAL_MEDIA_BASE_PATH \
++    VITE_LOCAL_PATH_ITEMS=$VITE_LOCAL_PATH_ITEMS \
++    VITE_LOCAL_PATH_CATEGORIES_OPEN=$VITE_LOCAL_PATH_CATEGORIES_OPEN \
++    VITE_LOCAL_PATH_CATEGORIES_SORRY=$VITE_LOCAL_PATH_CATEGORIES_SORRY \
++    VITE_LOCAL_PATH_CATEGORIES_PROMOTED=$VITE_LOCAL_PATH_CATEGORIES_PROMOTED \
++    VITE_LOCAL_PATH_SCREENSAVER=$VITE_LOCAL_PATH_SCREENSAVER \
++    VITE_LOCAL_PATH_ORDER_HANDLING=$VITE_LOCAL_PATH_ORDER_HANDLING \
++    VITE_LOCAL_PATH_SERVICE_MODE=$VITE_LOCAL_PATH_SERVICE_MODE \
++    VITE_S3_ENDPOINT=$VITE_S3_ENDPOINT \
++    VITE_S3_BUCKET=$VITE_S3_BUCKET \
++    VITE_S3_REGION=$VITE_S3_REGION \
++    VITE_SERVICE_MODE_MEDIA_NAMES=$VITE_SERVICE_MODE_MEDIA_NAMES \
++    VITE_SCREENSAVER_MEDIA_NAMES=$VITE_SCREENSAVER_MEDIA_NAMES \
++    VITE_ORDER_HANDLING_MEDIA_NAMES=$VITE_ORDER_HANDLING_MEDIA_NAMES
++
+ # Build using only this app's files
+ COPY package*.json ./
+ COPY pnpm-lock.yaml ./
+```
+
+**Railway Configuration:**
+- **Root Directory:** `frontend/apps/kiosk` (не `frontend`!)
+- **Dockerfile Path:** `Dockerfile.pnpm` (автоопределение или явно)
+
+**Обоснование:**
+- ✅ Использует тот же Dockerfile что и docker-compose (максимальная совместимость)
+- ✅ Простая структура без workspace зависимостей
+- ✅ Поддержка VITE_* переменных для Railway
+- ✅ Не требует изменений в docker-compose.yml
+- ✅ pnpm-lock.yaml существует и используется для детерминированной сборки
+
+**Обратная совместимость:**
+- Docker Compose продолжает работать как раньше (ARG/ENV опциональны)
+- Локальный build работает без VITE_* переменных (fallback на `/api`)
+- Railway передает VITE_* через environment variables → build args
+
+---
+
 ## Резюме изменений
 
 | # | Файл | Изменение | Влияние на логику | Совместимость |
@@ -1401,6 +1498,7 @@ Pydantic Settings пытался автоматически парсить `List
 | 7 | `frontend/apps/kiosk/Dockerfile` | ARG+ENV для VITE_* (40 строк) | ❌ НЕТ | ✅ Полная |
 | 8 | `.gitignore` | Railway файлы | ❌ НЕТ | ✅ Полная |
 | 9 | `backend/app/config.py` | ALLOWED_ORIGINS validator | ❌ НЕТ | ✅ Полная |
+| 10 | `frontend/apps/kiosk/Dockerfile.pnpm` | ARG+ENV для VITE_* (Railway) | ❌ НЕТ | ✅ Полная |
 
 **Все изменения:**
 - ✅ Не затрагивают бизнес-логику

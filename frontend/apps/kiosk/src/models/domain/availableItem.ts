@@ -23,6 +23,7 @@ export interface AvailableItem {
   vatAmount: number;
   priceGross: number;
   isActive: boolean;
+  isAvailable: boolean; // Compatibility alias (same as isActive for domain)
   promoted: boolean;
   stockQuantity: number;
 

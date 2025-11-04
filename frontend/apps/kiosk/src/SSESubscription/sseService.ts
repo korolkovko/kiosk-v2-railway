@@ -8,7 +8,7 @@ import { getAccessToken, tryRefreshToken, getRefreshToken } from '../api/apiHttp
 // ROLLBACK_MARKER: SSE_TOKEN_REFRESH_END
 
 export interface SSEEvent {
-  event_type: 'ITEM_STATUS_CHANGED' | 'ITEM_PROMOTION_CHANGED' | 'ITEM_STOCK_CHANGED' | 'ITEM_CREATED' | 'ITEM_PROPERTIES_CHANGED' | 'ORDER_STATUS_CHANGED' | 'ORDER_EVENT_TRIGGERED' | 'KIOSK_SERVICE_MODE_CHANGED' | 'HEARTBEAT'
+  event_type: 'ITEM_STATUS_CHANGED' | 'ITEM_PROMOTION_CHANGED' | 'ITEM_STOCK_CHANGED' | 'ITEM_CREATED' | 'ITEM_PROPERTIES_CHANGED' | 'ORDER_STATUS_CHANGED' | 'ORDER_EVENT_TRIGGERED' | 'KIOSK_SERVICE_MODE_CHANGED' | 'HEARTBEAT' | 'MEDIA_UPDATE' | 'MENU_ACTIVATED'
   timestamp?: string
 }
 
@@ -96,7 +96,19 @@ export interface HeartbeatEvent extends SSEEvent {
   event_type: 'HEARTBEAT'
 }
 
-export type KioskSSEEvent = ItemStatusChangedEvent | ItemPromotionChangedEvent | ItemStockChangedEvent | ItemCreatedEvent | ItemPropertiesChangedEvent | OrderStatusChangedEvent | OrderEventTriggeredEvent | KioskServiceModeChangedEvent | HeartbeatEvent
+export interface MediaUpdateEvent extends SSEEvent {
+  event_type: 'MEDIA_UPDATE'
+  media_type?: string
+  media_path?: string
+}
+
+export interface MenuActivatedEvent extends SSEEvent {
+  event_type: 'MENU_ACTIVATED'
+  menu_id?: number
+  menu_name?: string
+}
+
+export type KioskSSEEvent = ItemStatusChangedEvent | ItemPromotionChangedEvent | ItemStockChangedEvent | ItemCreatedEvent | ItemPropertiesChangedEvent | OrderStatusChangedEvent | OrderEventTriggeredEvent | KioskServiceModeChangedEvent | HeartbeatEvent | MediaUpdateEvent | MenuActivatedEvent
 
 export interface SSEServiceConfig {
   url: string

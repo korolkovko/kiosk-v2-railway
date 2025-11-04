@@ -30,6 +30,7 @@ export interface AvailableItemVM {
 
   promoted: boolean;
   stockQuantity: number;
+  isActive: boolean; // Compatibility alias
   isAvailable: boolean; // Computed: stockQuantity > 0 && isActive
 
   // Menu display fields

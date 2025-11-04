@@ -78,20 +78,24 @@ class Settings(BaseSettings):
     LOG_FILE_PATH: str = "./logs/app.log"
 
     # CORS Settings
-    # Supports multiple formats:
-    # 1. List in .env files or defaults: ["http://localhost", "http://localhost:3000"]
-    # 2. Comma-separated string (Railway, Heroku, etc): "http://localhost,http://localhost:3000"
-    # 3. JSON array string: '["http://localhost", "http://localhost:3000"]'
-    ALLOWED_ORIGINS: List[str] = ["http://localhost", "http://localhost:3000"]
+    # Accepts multiple input formats via validator:
+    # 1. Comma-separated string (Railway, Heroku, cloud platforms): "http://localhost,http://localhost:3000"
+    # 2. JSON array string (backward compatibility): '["http://localhost", "http://localhost:3000"]'
+    # 3. List from Python code (defaults): ["http://localhost", "http://localhost:3000"]
+    #
+    # IMPORTANT: Type is Union to prevent Pydantic from auto-parsing before validator runs
+    ALLOWED_ORIGINS: Union[str, List[str]] = "http://localhost,http://localhost:3000"
 
     @field_validator('ALLOWED_ORIGINS', mode='before')
     @classmethod
     def parse_allowed_origins(cls, v: Union[str, List[str]]) -> List[str]:
         """
-        Parse ALLOWED_ORIGINS from multiple formats to ensure compatibility
-        with Railway, Docker, local .env files, and direct environment variables.
+        Parse ALLOWED_ORIGINS from multiple formats to ensure universal compatibility.
+
+        This validator runs BEFORE Pydantic's automatic type coercion, allowing us to
+        handle comma-separated strings from Railway and other cloud platforms.
         """
-        # If already a list, return as-is
+        # If already a list, return as-is (from Python defaults or programmatic config)
         if isinstance(v, list):
             return v
 
@@ -104,7 +108,7 @@ class Settings(BaseSettings):
             if not v:
                 return ["http://localhost", "http://localhost:3000"]
 
-            # Try parsing as JSON array
+            # Try parsing as JSON array (backward compatibility)
             if v.startswith('[') and v.endswith(']'):
                 try:
                     parsed = json.loads(v)
@@ -113,10 +117,10 @@ class Settings(BaseSettings):
                 except json.JSONDecodeError:
                     pass
 
-            # Parse as comma-separated string
+            # Parse as comma-separated string (Railway, Heroku, most cloud platforms)
             return [origin.strip() for origin in v.split(',') if origin.strip()]
 
-        # Fallback to default
+        # Fallback to default for any unexpected type
         return ["http://localhost", "http://localhost:3000"]
 
     # External Integrations

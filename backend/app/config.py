@@ -1,9 +1,10 @@
 from functools import lru_cache
-from typing import List
+from typing import List, Union
 from pathlib import Path
 import os
+import json
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 
@@ -77,7 +78,46 @@ class Settings(BaseSettings):
     LOG_FILE_PATH: str = "./logs/app.log"
 
     # CORS Settings
+    # Supports multiple formats:
+    # 1. List in .env files or defaults: ["http://localhost", "http://localhost:3000"]
+    # 2. Comma-separated string (Railway, Heroku, etc): "http://localhost,http://localhost:3000"
+    # 3. JSON array string: '["http://localhost", "http://localhost:3000"]'
     ALLOWED_ORIGINS: List[str] = ["http://localhost", "http://localhost:3000"]
+
+    @field_validator('ALLOWED_ORIGINS', mode='before')
+    @classmethod
+    def parse_allowed_origins(cls, v: Union[str, List[str]]) -> List[str]:
+        """
+        Parse ALLOWED_ORIGINS from multiple formats to ensure compatibility
+        with Railway, Docker, local .env files, and direct environment variables.
+        """
+        # If already a list, return as-is
+        if isinstance(v, list):
+            return v
+
+        # If string, try different parsing strategies
+        if isinstance(v, str):
+            # Remove whitespace
+            v = v.strip()
+
+            # Empty string returns default
+            if not v:
+                return ["http://localhost", "http://localhost:3000"]
+
+            # Try parsing as JSON array
+            if v.startswith('[') and v.endswith(']'):
+                try:
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        return parsed
+                except json.JSONDecodeError:
+                    pass
+
+            # Parse as comma-separated string
+            return [origin.strip() for origin in v.split(',') if origin.strip()]
+
+        # Fallback to default
+        return ["http://localhost", "http://localhost:3000"]
 
     # External Integrations
     POS_API_URL: str = ""

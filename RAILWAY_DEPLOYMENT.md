@@ -1485,6 +1485,93 @@ ERROR: failed to compute cache key: "/apps/kiosk/package.json": not found
 
 ---
 
+#### 11. frontend/apps/kiosk/pnpm-lock.yaml (КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ - Railway Build Fix)
+
+**Причина:** Railway build падал с ошибкой:
+```
+Cannot install with "frozen-lockfile" because pnpm-lock.yaml is not up to date with package.json
+specifiers in the lockfile don't match specifiers in package.json:
+12 dependencies were added
+```
+
+**Диагностика проблемы:**
+
+pnpm-lock.yaml был не синхронизирован с package.json. Отсутствовали 12 зависимостей:
+- `@vitest/ui`, `autoprefixer`, `vitest`
+- `@hookform/resolvers`, `@tanstack/react-query`
+- `clsx`, `framer-motion`, `lucide-react`
+- `react-hook-form`, `tailwind-merge`, `zod`, `zustand`
+
+**Решение:**
+
+Обновили lockfile локально:
+```bash
+cd frontend/apps/kiosk
+npx pnpm@latest install
+```
+
+**Изменения:**
+- pnpm-lock.yaml: обновлен с 112 KB до 139 KB (+864 строки)
+- Все 385 зависимостей теперь корректно разрешены
+- Lockfile синхронизирован с package.json
+
+**Обоснование:**
+- ✅ `--frozen-lockfile` требует полного соответствия lockfile и package.json
+- ✅ Railway использует `pnpm install --frozen-lockfile` для детерминированной сборки
+- ✅ Обновленный lockfile обеспечивает воспроизводимость сборки
+
+**Обратная совместимость:**
+- Полная совместимость (dependency management only)
+- Docker Compose использует тот же lockfile
+- Локальный dev использует те же версии зависимостей
+
+---
+
+#### 12. frontend/apps/kiosk/src/ (КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ - TypeScript Build Fix)
+
+**Причина:** Railway build падал с TypeScript ошибками компиляции:
+```
+error TS17008: JSX element 'div' has no corresponding closing tag.
+error TS1435: Unknown keyword or identifier. Did you mean 'declare'?
+Command failed with exit code 2
+```
+
+**Диагностика проблемы:**
+
+1. **FocusableQuantityControl.tsx:**
+   - Файл обрезан на строке 102 с незакрытым JSX выражением `{isFocused && (`
+   - Отсутствует завершение компонента
+   - Файл был коррумпирован еще в initial commit
+
+2. **typings.d.ts:**
+   - Опечатка на строке 1: `hadeclare` вместо `declare`
+   - Синтаксическая ошибка TypeScript
+
+**Решение:**
+
+1. **Удалили FocusableQuantityControl.tsx** (103 строки):
+   - Файл коррумпирован и не подлежит восстановлению
+   - Компонент не используется нигде в коде (verified via grep)
+   - Это был демо/тестовый компонент, не часть production кода
+
+2. **Исправили typings.d.ts:**
+```diff
+-hadeclare module "*.png";
++declare module "*.png";
+```
+
+**Обоснование:**
+- ✅ FocusableQuantityControl не импортируется ни в одном файле
+- ✅ Удаление неиспользуемого кода улучшает качество codebase
+- ✅ typings.d.ts необходим для импорта статических ассетов
+
+**Обратная совместимость:**
+- Полная совместимость (удален только неиспользуемый код)
+- TypeScript компиляция теперь успешна
+- Не влияет на существующий функционал
+
+---
+
 ## Резюме изменений
 
 | # | Файл | Изменение | Влияние на логику | Совместимость |
@@ -1499,6 +1586,9 @@ ERROR: failed to compute cache key: "/apps/kiosk/package.json": not found
 | 8 | `.gitignore` | Railway файлы | ❌ НЕТ | ✅ Полная |
 | 9 | `backend/app/config.py` | ALLOWED_ORIGINS validator | ❌ НЕТ | ✅ Полная |
 | 10 | `frontend/apps/kiosk/Dockerfile.pnpm` | ARG+ENV для VITE_* (Railway) | ❌ НЕТ | ✅ Полная |
+| 11 | `frontend/apps/kiosk/pnpm-lock.yaml` | Обновлен lockfile (+864 строки) | ❌ НЕТ | ✅ Полная |
+| 12 | `frontend/apps/kiosk/src/typings.d.ts` | Исправлена опечатка hadeclare→declare | ❌ НЕТ | ✅ Полная |
+| 12 | `frontend/.../FocusableQuantityControl.tsx` | Удален (коррумпирован, не используется) | ❌ НЕТ | ✅ Полная |
 
 **Все изменения:**
 - ✅ Не затрагивают бизнес-логику

@@ -28,7 +28,10 @@ export function useSSEMenuUpdates({ onMenuActivated }: UseSSEMenuUpdatesProps) {
     const menuEvent = event as MenuActivatedEvent
     console.log('📡 MENU_ACTIVATED SSE:', menuEvent)
 
-    onMenuActivated(menuEvent.menu_id, menuEvent.menu_name)
+    // menu_id and menu_name are optional in SSE event
+    if (menuEvent.menu_id !== undefined && menuEvent.menu_name !== undefined) {
+      onMenuActivated(menuEvent.menu_id, menuEvent.menu_name)
+    }
   }, [onMenuActivated])
 
   useEffect(() => {

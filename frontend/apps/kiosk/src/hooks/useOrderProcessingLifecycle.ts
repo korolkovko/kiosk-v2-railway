@@ -72,7 +72,7 @@ export function useOrderProcessingLifecycle(
   // Handle order status updates from SSE
   const handleOrderUpdate = useCallback((orderUpdate: OrderUpdateData) => {
     // Delegate to lifecycle service for processing
-    const isTerminalState = orderProcessingLifecycleService.handleOrderUpdateDuringProcessing(
+    orderProcessingLifecycleService.handleOrderUpdateDuringProcessing(
       orderUpdate,
       currentOrder,
       updateOrderStatus

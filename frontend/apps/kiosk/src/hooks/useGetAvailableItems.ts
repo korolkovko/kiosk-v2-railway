@@ -147,6 +147,7 @@ export function useGetAvailableItems(): UseGetAvailableItemsResult {
           vatRate: updateData.vatRate ?? null,
           promoted: updateData.promoted!,
           stockQuantity: updateData.stockQuantity!,
+          isActive: updateData.isAvailable!, // Compatibility alias (for new items, isActive = isAvailable from SSE)
           isAvailable: updateData.isAvailable!,
           displayOrder: 0, // SSE updates don't include menu info, will be fetched from backend
           startAt: null,

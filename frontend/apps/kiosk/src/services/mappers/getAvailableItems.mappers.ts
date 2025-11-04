@@ -45,6 +45,7 @@ function mapGetAvailableItemDtoToDomain(dto: GetAvailableItemDto): AvailableItem
     vatAmount: vatAmountRubles,
     priceGross: priceGrossRubles,
     isActive: dto.is_active,
+    isAvailable: dto.is_active, // Compatibility alias (same as isActive for domain)
     promoted: dto.promoted,
     stockQuantity: dto.stock_quantity,
 
@@ -96,6 +97,7 @@ function mapGetAvailableItemDomainToVM(domain: AvailableItem): AvailableItemVM {
 
     promoted: domain.promoted,
     stockQuantity: domain.stockQuantity,
+    isActive: domain.isActive, // Compatibility alias
     isAvailable: domain.stockQuantity > 0 && domain.isActive,
 
     // Menu display fields

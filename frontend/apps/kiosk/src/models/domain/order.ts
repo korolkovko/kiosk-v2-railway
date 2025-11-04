@@ -17,6 +17,19 @@ export enum OrderStatus {
 }
 
 /**
+ * PaymentStatus
+ * Legacy enum for payment status (kept for view model compatibility).
+ * Note: Modern FSM-based order processing uses FSMState/FSMEvent instead.
+ */
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  SUCCESS = 'SUCCESS',
+  FAILED = 'FAILED',
+  DECLINED = 'DECLINED',
+  ERROR = 'ERROR'
+}
+
+/**
  * FSMEvent
  * Enum for FSM event tracking (matches backend fsm_spec.Event exactly).
  * These events are sent via ORDER_EVENT_TRIGGERED SSE events.

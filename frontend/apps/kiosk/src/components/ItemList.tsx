@@ -16,7 +16,7 @@ const ItemList: FunctionComponent<ItemListType> = ({
     navigationMode,
     handleItemHover,
     isItemActive,
-    activeItemIndex
+    activeItemIndex: _activeItemIndex
   } = useKioskNavigation();
 
   // Only show hover effects when in items navigation mode and not disabled

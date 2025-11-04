@@ -5,7 +5,7 @@
 // Contains formatted strings, item details, and calculated totals.
 // Enriches domain model with data from available items for fast UI rendering.
 
-import type { CartItem, CartTotals } from '../domain/cart'
+import type { CartTotals } from '../domain/cart'
 
 /**
  * CartItemVM

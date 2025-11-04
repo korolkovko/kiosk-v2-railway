@@ -5,7 +5,7 @@
 // Contains formatted strings, status indicators, and progress information.
 // Enriches domain model with UI-friendly display data.
 
-import type { Order, OrderStatus, PaymentStatus, FSMState, OrderStatusUpdate } from '../domain/order'
+import type { OrderStatus, PaymentStatus, FSMState, OrderStatusUpdate } from '../domain/order'
 
 /**
  * ProcessingStatusVM

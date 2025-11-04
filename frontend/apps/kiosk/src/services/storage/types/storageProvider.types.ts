@@ -26,6 +26,7 @@ export interface LocalStorageConfig {
     [MediaType.CATEGORIES_PROMOTED]: string;
     [MediaType.SCREENSAVER]: string;
     [MediaType.ORDER_HANDLING]: string;
+    [MediaType.SERVICE_MODE]: string;
     [MediaType.FABRIC]: string;
   };
 }
@@ -60,6 +61,7 @@ export interface S3StorageConfig {
     [MediaType.CATEGORIES_PROMOTED]: string;
     [MediaType.SCREENSAVER]: string;
     [MediaType.ORDER_HANDLING]: string;
+    [MediaType.SERVICE_MODE]: string;
     [MediaType.FABRIC]: string;
   };
 }

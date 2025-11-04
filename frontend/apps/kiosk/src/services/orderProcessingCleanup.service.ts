@@ -4,7 +4,6 @@
 // Uses OrderContext directly - no separate order status service needed
 
 import { CartClearingHelpers } from './cartClearingTriggers.service';
-import { OrderStatusHelpers } from './orderStatusHelpers';
 import { OrderStatus, type Order } from '../models/domain/order';
 import type { CartItem } from '../models/domain/cart';
 import type { NavigationMode } from '../stores/navigationStore';

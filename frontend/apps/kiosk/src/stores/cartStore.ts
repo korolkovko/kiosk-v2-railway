@@ -6,7 +6,7 @@
 // Handles cart items, navigation, and integrates with calculation services.
 
 import { create } from 'zustand'
-import type { Cart, CartItem } from '../models/domain/cart'
+import type { Cart } from '../models/domain/cart'
 import type { CartVM, CartItemUpdateRequest } from '../models/view/cart.vm'
 import {
   generateCartViewModel,
@@ -130,8 +130,8 @@ export const useCartStore = create<CartStore>((set, get) => ({
   },
 
   clearCart: () => {
-    const { cart } = get()
-    
+    const { cart: _cart } = get()
+
     // Track lifecycle event before clearing
     CartLifecycleHelpers.trackCartClear('manual')
     

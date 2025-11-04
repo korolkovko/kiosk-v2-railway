@@ -28,7 +28,10 @@ export function useSSEMediaUpdate({ onMediaUpdate }: UseSSEMediaUpdateProps) {
     const mediaEvent = event as MediaUpdateEvent
     console.log('📦 MEDIA_UPDATE SSE:', mediaEvent)
 
-    onMediaUpdate(mediaEvent.media_type, mediaEvent.identifier)
+    // media_type and media_path are optional in SSE event
+    if (mediaEvent.media_type && mediaEvent.media_path) {
+      onMediaUpdate(mediaEvent.media_type, mediaEvent.media_path)
+    }
   }, [onMediaUpdate])
 
   useEffect(() => {

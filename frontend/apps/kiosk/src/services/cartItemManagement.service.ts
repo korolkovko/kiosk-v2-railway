@@ -5,9 +5,8 @@
 // Handles cart item business logic and integrates with available items validation.
 // Provides clean interface for cart store and components.
 
-import type { Cart, CartItem } from '../models/domain/cart'
+import type { Cart } from '../models/domain/cart'
 import type { CartVM, CartItemVM, CartItemUpdateRequest } from '../models/view/cart.vm'
-import type { AvailableItem } from '../models/domain/availableItem'
 import { 
   calculateCartTotals, 
   formatCartTotalsForDisplay, 

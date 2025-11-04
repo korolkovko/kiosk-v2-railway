@@ -3,7 +3,6 @@
 // Handles SSE events, status updates, cleanup, and navigation
 // Uses OrderContext directly - no separate order status service needed
 
-import { CartClearingHelpers } from './cartClearingTriggers.service';
 import { orderProcessingCleanupService } from './orderProcessingCleanup.service';
 import { OrderStatus, type Order } from '../models/domain/order';
 import type { CartItem } from '../models/domain/cart';

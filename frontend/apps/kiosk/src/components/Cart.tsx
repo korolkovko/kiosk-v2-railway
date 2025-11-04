@@ -64,7 +64,7 @@ const Cart: FunctionComponent<CartType> = ({
             return (
               <div
                 key={item.item_id}
-                ref={(el) => (itemRefs.current[index] = el)}
+                ref={(el) => { itemRefs.current[index] = el }}
                 className={`w-full ${isActive ? 'bg-[#ffffff1a]' : ''} ${canHover ? 'hover:bg-[#ffffff0d] cursor-pointer' : ''}`}
                 onMouseEnter={() => canHover && onCartItemHover && onCartItemHover(index)}
               >

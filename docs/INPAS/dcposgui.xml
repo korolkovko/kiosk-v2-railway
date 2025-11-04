@@ -1,0 +1,14 @@
+<root>
+    <listen>127.0.0.1:6000</listen>
+    <codepage>1251</codepage>
+    <readtimeoutms>30</readtimeoutms>
+    <closeable>true</closeable>
+    <fontsize>15</fontsize>
+    <width>500</width>
+    <height>280</height>
+    <maxwidth>500</maxwidth>
+    <maxheight>280</maxheight>
+    <autosize>true</autosize>
+    <positionX>767</positionX>
+    <positionY>421</positionY>
+</root>

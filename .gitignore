@@ -1,0 +1,92 @@
+# Environment files with secrets (NEVER commit)
+.env
+.env.local
+.env.dev
+.env.prod
+.env.production
+.env.development
+*.env
+
+# Allow templates only (safe to commit)
+!.env.example
+!.env.dev.example
+!.env.prod.example
+
+# Frontend environment files (contain S3 credentials)
+frontend/apps/kiosk/.env
+frontend/apps/kiosk/.env.local
+
+# Data directories
+data/postgres/
+data/redis/
+data/logs/
+data/backups/
+data/uploads/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Testing
+.coverage
+.pytest_cache/
+coverage/
+htmlcov/
+.tox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Logs
+*.log
+logs/
+
+# Railway
+.railway/

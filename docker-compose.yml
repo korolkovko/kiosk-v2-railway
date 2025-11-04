@@ -1,0 +1,82 @@
+# docker-compose.yml
+# Docker Compose configuration for KIOSK application (Development)
+# Production-ready services only: PostgreSQL, Backend API, Frontend Kiosk
+
+services:
+  # PostgreSQL Database Service
+  postgres:
+    image: postgres:15-alpine
+    container_name: kiosk_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kiosk_db
+      POSTGRES_USER: kiosk_user
+      POSTGRES_PASSWORD: kiosk_secure_password_2025
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5433:5432"  # Using port 5433 to avoid conflict with existing PostgreSQL
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./data/postgres:/docker-entrypoint-initdb.d
+    networks:
+      - kiosk_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kiosk_user -d kiosk_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: kiosk_backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      HOST: "0.0.0.0"
+    ports:
+      - "8001:8000"  # Backend on port 8001 to avoid conflicts
+    volumes:
+      - ./backend:/app  # Mount entire backend code for hot reload (development only)
+      - ./data/uploads:/app/uploads
+      - ./data/logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - kiosk_network
+    # Healthcheck disabled since server runs manually in development
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+
+  # Frontend Kiosk Service
+  kiosk-frontend:
+    build:
+      context: ./frontend/apps/kiosk
+      dockerfile: Dockerfile.pnpm
+    container_name: kiosk_frontend_kiosk
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - kiosk_network
+    profiles:
+      - kiosk
+
+# Named volumes for data persistence
+volumes:
+  postgres_data:
+    driver: local
+
+# Custom network for service communication
+networks:
+  kiosk_network:
+    driver: bridge

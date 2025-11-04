@@ -1,0 +1,100 @@
+# kiosk_config.yaml
+# Hierarchical configuration for kiosk-specific device settings
+
+# Configuration for kiosk user: kiosk_001
+# for mockup testing use ..._ADDRESS: mockup_mode
+# ws transport https://web-production-a21a7.up.railway.app (endpoints /send)
+# for printer use mockup_mode as address and /mocks/printer as endpoint
+# rgpc test https://zc-grpc-server-production.up.railway.app/send
+
+kiosk_001:
+  POS_TERMINAL_ID: POS_001
+  POS_TERMINAL_ADDRESS: https://web-production-a21a7.up.railway.app
+  POS_TERMINAL_ENDPOINT: /send
+  POS_TERMINAL_TIMEOUT: 30
+  POS_TERMINAL_RETRY: 1
+  
+  FISCAL_DEVICE_ID: FISCAL_001
+  FISCAL_DEVICE_ADDRESS: https://web-production-a21a7.up.railway.app
+  FISCAL_DEVICE_ENDPOINT: /send
+  FISCAL_DEVICE_TIMEOUT: 30
+  FISCAL_DEVICE_RETRY: 1
+  
+  PRINTER_DEVICE_ID: PRINTER_001
+  PRINTER_DEVICE_ADDRESS: mockup_mode
+  PRINTER_DEVICE_ENDPOINT: /mocks/printer
+  PRINTER_DEVICE_TIMEOUT: 30
+  PRINTER_DEVICE_RETRY: 1
+  
+  KDS_NAME: Kitchen_Station_A
+  KDS_ADDRESS: https://web-production-a21a7.up.railway.app
+  KDS_ENDPOINT: /send
+  KDS_TIMEOUT: 30
+  KDS_RETRY: 1
+  
+  # External call documentation feature
+  EXTERNAL_CALL_DOCUMENTATION: true
+  # Single base path for integrations logs (docs and receipts). If missing or invalid/not writable, nothing will be written (skipped with a short log message). The base directory is NOT created automatically; only subfolders under an existing base are created.
+  INTEGRATIONS_LOG_BASE_PATH: "/var/kiosk/integration log"
+  
+# Configuration for kiosk user: kiosk_002
+# full test environment https://unified-mocks-service-production.up.railway.app (endpoints /mocks/... payment, fiscal, printer, kds)
+kiosk_002:
+  POS_TERMINAL_ID: POS_002
+  POS_TERMINAL_ADDRESS: https://unified-mocks-service-production.up.railway.app
+  POS_TERMINAL_ENDPOINT: /mocks/payment
+  POS_TERMINAL_TIMEOUT: 30
+  POS_TERMINAL_RETRY: 1
+  
+  FISCAL_DEVICE_ID: FISCAL_002
+  FISCAL_DEVICE_ADDRESS: https://unified-mocks-service-production.up.railway.app
+  FISCAL_DEVICE_ENDPOINT: /mocks/fiscal
+  FISCAL_DEVICE_TIMEOUT: 30
+  FISCAL_DEVICE_RETRY: 1
+  
+  PRINTER_DEVICE_ID: PRINTER_002
+  PRINTER_DEVICE_ADDRESS: mockup_mode
+  PRINTER_DEVICE_ENDPOINT: /mocks/printer
+  PRINTER_DEVICE_TIMEOUT: 30
+  PRINTER_DEVICE_RETRY: 1
+  
+  KDS_NAME: Kitchen_Station_B
+  KDS_ADDRESS: https://unified-mocks-service-production.up.railway.app
+  KDS_ENDPOINT: /mocks/kds
+  KDS_TIMEOUT: 30
+  KDS_RETRY: 1
+  
+  #old test https://unified-mocks-service-production.up.railway.app
+  # External call documentation feature
+  EXTERNAL_CALL_DOCUMENTATION: true
+  INTEGRATIONS_LOG_BASE_PATH: "/var/kiosk/integration log"
+  
+kiosk_003:
+  POS_TERMINAL_ID: POS_003
+  POS_TERMINAL_ADDRESS: https://unified-mocks-service-production.up.railway.app
+  POS_TERMINAL_ENDPOINT: /mocks/payment
+  POS_TERMINAL_TIMEOUT: 30
+  POS_TERMINAL_RETRY: 1
+  
+  FISCAL_DEVICE_ID: FISCAL_003
+  FISCAL_DEVICE_ADDRESS: https://unified-mocks-service-production.up.railway.app
+  FISCAL_DEVICE_ENDPOINT: /mocks/fiscal
+  FISCAL_DEVICE_TIMEOUT: 30
+  FISCAL_DEVICE_RETRY: 1
+  
+  PRINTER_DEVICE_ID: PRINTER_003
+  PRINTER_DEVICE_ADDRESS: mockup_mode
+  PRINTER_DEVICE_ENDPOINT: /mocks/printer
+  PRINTER_DEVICE_TIMEOUT: 30
+  PRINTER_DEVICE_RETRY: 1
+  
+  KDS_NAME: Kitchen_Station_B
+  KDS_ADDRESS: https://unified-mocks-service-production.up.railway.app
+  KDS_ENDPOINT: /mocks/kds
+  KDS_TIMEOUT: 30
+  KDS_RETRY: 1
+  
+  #old test https://unified-mocks-service-production.up.railway.app
+  # External call documentation feature
+  EXTERNAL_CALL_DOCUMENTATION: true
+  INTEGRATIONS_LOG_BASE_PATH: "/var/kiosk/integration log"

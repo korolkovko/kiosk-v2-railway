@@ -1,0 +1,112 @@
+# docker-compose.prod.yml
+# Production overrides for docker-compose.yml
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+# RESOURCE LIMITS GUIDE:
+# These limits are configured for a budget VPS (1 CPU, 2GB RAM)
+# 
+# How CPU limits work:
+# - cpus: '0.8' means container can use UP TO 80% of ONE CPU core
+# - If you have 1 CPU: container uses max 80% of that core
+# - If you have 2 CPUs: container still limited to 0.8 cores (80% of one core)
+# - Total can exceed 1.0 because Docker allows overcommitment (containers share CPU time)
+#
+# Adjust for your server:
+# - 1 CPU, 2GB RAM: Use these values (budget VPS)
+# - 2 CPUs, 4GB RAM: Double the CPU values (cpus: '1.6' for backend, etc.)
+# - 4+ CPUs, 8GB+ RAM: Remove limits or multiply by 4
+# - To disable limits: Comment out the entire 'deploy' sections
+
+services:
+  # PostgreSQL - Production Configuration
+  postgres:
+    # Remove port exposure (internal only for security)
+    ports: []
+    restart: always
+    # Resource limits for 1-CPU VPS
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'      # 50% of one CPU core
+          memory: 512M     # 512MB RAM
+        reservations:
+          cpus: '0.25'     # Guaranteed 25% CPU
+          memory: 256M     # Guaranteed 256MB RAM
+
+  # Backend API - Production Configuration
+  backend:
+    # No volume mounts (no hot reload in production)
+    volumes:
+      - /var/kiosk/uploads:/app/uploads
+      - /var/kiosk/logs:/app/logs
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=false
+    # Production command with multiple workers
+    # For 1-CPU: use 2 workers. For 2+ CPUs: use (CPU_count * 2) + 1
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    restart: always
+    # Enable health check in production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # Resource limits for 1-CPU VPS (backend gets most resources)
+    deploy:
+      resources:
+        limits:
+          cpus: '0.8'      # 80% of one CPU core (most important service)
+          memory: 1G       # 1GB RAM
+        reservations:
+          cpus: '0.5'      # Guaranteed 50% CPU
+          memory: 512M     # Guaranteed 512MB RAM
+
+  # Frontend Kiosk - Production Configuration
+  kiosk-frontend:
+    restart: always
+    # Remove profile requirement (always runs in prod)
+    profiles: []
+    # Resource limits for 1-CPU VPS (lightweight static files)
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'      # 20% of one CPU core
+          memory: 256M     # 256MB RAM
+        reservations:
+          cpus: '0.1'      # Guaranteed 10% CPU
+          memory: 128M     # Guaranteed 128MB RAM
+
+  # Nginx Reverse Proxy - Production Only
+  nginx:
+    image: nginx:alpine
+    container_name: kiosk_nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deployment/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./deployment/ssl:/etc/nginx/ssl:ro
+      - /var/kiosk/media:/var/kiosk/media:ro
+    depends_on:
+      - backend
+      - kiosk-frontend
+    networks:
+      - kiosk_network
+    # Nginx health check
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    # Resource limits for 1-CPU VPS (very lightweight)
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'      # 10% of one CPU core
+          memory: 128M     # 128MB RAM
+        reservations:
+          cpus: '0.05'     # Guaranteed 5% CPU
+          memory: 64M      # Guaranteed 64MB RAM

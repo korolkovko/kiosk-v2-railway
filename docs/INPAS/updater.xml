@@ -1,0 +1,13 @@
+<Root>
+	<Version>2.0.12.0</Version>
+	<Param />
+	<Log>
+		<Type>DEBUG</Type>
+		<Cleartime>30</Cleartime>
+	</Log>
+	<InfoUrl>ftp://ftp.in-line.ru</InfoUrl>
+	<UserName>freesoft</UserName>
+	<Password>freesoft</Password>
+	<SilentMode>yes</SilentMode>
+	<CheckUpdateAuto>false</CheckUpdateAuto>
+</Root>
